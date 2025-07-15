@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shurlock</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Shurlock</h1>
+            <label>
+                <input type="checkbox" id="dark-mode-toggle" />
+                Dark Mode
+            </label>
+        </div>
+        <div class="grid-container">
+            <div id="status-card" class="card-neutral">
+                <img id="status-icon" src="icons/loader.svg" alt="Status Icon" />
+                <p id="status-message">Checking this site...</p>
+                <p class="status-description" id="status-description">Scanning the current site for threats.</p>
+            </div>
+        </div>
+        <div id="spinner" class="spinner" style="display: none;"></div>
+        <p class="domain-display" id="domain-display">domain.com</p>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

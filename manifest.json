@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Shurlock - Advanced URL Security Scanner",
+  "version": "2.0.0",
+  "description": "Comprehensive URL security scanner with SSL validation, domain reputation, and threat detection",
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon-neutral-16.png",
+      "48": "images/icon-neutral-48.png",
+      "128": "images/icon-neutral-128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon-neutral-16.png",
+    "48": "images/icon-neutral-48.png",
+    "128": "images/icon-neutral-128.png"
+  }
+}
