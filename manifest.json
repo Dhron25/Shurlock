@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Shurlock - Advanced URL Security Scanner",
-  "version": "1.0.0",
-  "description": "Comprehensive URL security scanner with initial SSL validation and URL analysis",
+  "version": "2.0.0",
+  "description": "Comprehensive URL security scanner with SSL validation, domain reputation, and threat detection",
   "permissions": [
     "tabs",
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "downloads"
   ],
   "host_permissions": [
     "https://*/*",

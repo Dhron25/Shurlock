@@ -22,10 +22,10 @@
         </div>
 
         <div class="main-content">
-            <div id="status-card" class="status-card status-scanning">
+            <div id="status-card" class="status-card">
                 <div class="status-header">
                     <div class="status-icon-wrapper">
-                        <div id="status-icon-container" class="status-icon-container status-scanning">
+                        <div id="status-icon-container" class="status-icon-container">
                             <img id="status-icon" src="icons/loader.svg" alt="Status" class="status-icon">
                         </div>
                     </div>
@@ -37,7 +37,7 @@
                 
                 <div class="risk-meter">
                     <div class="meter-track">
-                        <div id="risk-fill" class="meter-fill" style="width: 0%;"></div>
+                        <div id="risk-fill" class="meter-fill"></div>
                     </div>
                     <div class="meter-labels">
                         <span>Safe</span>
@@ -52,31 +52,31 @@
                     <img src="icons/shield-check.svg" alt="Safe Browsing" class="stat-icon">
                     <div class="stat-content">
                         <span class="stat-label">Safe Browsing</span>
-                        <span id="safe-browsing-status" class="stat-value stat-pending">Checking...</span>
+                        <span id="safe-browsing-status" class="stat-value">Checking...</span>
                     </div>
                 </div>
                 <div class="stat-item">
                     <img src="icons/lock.svg" alt="SSL" class="stat-icon">
                     <div class="stat-content">
                         <span class="stat-label">SSL Certificate</span>
-                        <span id="ssl-status" class="stat-value stat-pending">Checking...</span>
+                        <span id="ssl-status" class="stat-value">Checking...</span>
                     </div>
                 </div>
                 <div class="stat-item">
                     <img src="icons/globe.svg" alt="Domain" class="stat-icon">
                     <div class="stat-content">
                         <span class="stat-label">Domain Trust</span>
-                        <span id="domain-status" class="stat-value stat-pending">Checking...</span>
+                        <span id="domain-status" class="stat-value">Checking...</span>
                     </div>
                 </div>
             </div>
 
             <div class="action-buttons">
-                <button id="detailed-report-btn" class="btn btn-primary" disabled>
+                <button id="detailed-report-btn" class="btn btn-primary">
                     <img src="icons/download.svg" alt="Download" class="btn-icon">
                     Download Report
                 </button>
-                <button id="rescan-btn" class="btn btn-secondary" disabled>
+                <button id="rescan-btn" class="btn btn-secondary">
                     <img src="icons/refresh.svg" alt="Rescan" class="btn-icon">
                     Rescan
                 </button>
