@@ -1,10 +1,28 @@
-// Security: In production, use environment variables
 const API_KEY = 'AIzaSyBz4ZT6Z05ezubMfJYOrNVaJVeBqE3I3sE';
 const SAFE_BROWSING_URL = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${API_KEY}`;
 
 class SecurityScanner {
   constructor() {
     this.scanResults = new Map();
+    this.settings = {};
+    this.loadSettings();
+  }
+
+  async loadSettings() {
+    try {
+      const result = await chrome.storage.sync.get(['shurlock_settings']);
+      this.settings = result.shurlock_settings || {
+        scanning: {
+          timeout: 10,
+          autoRescan: true
+        },
+        appearance: {
+          theme: 'dark'
+        }
+      };
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
   }
 
   async performComprehensiveScan(tabId, url) {
@@ -33,7 +51,6 @@ class SecurityScanner {
     this.updateIcon(tabId, 'scanning');
 
     try {
-      // Run security checks sequentially to avoid rate limiting
       console.log('Checking Safe Browsing...');
       const safeBrowsingResult = await this.checkSafeBrowsing(url);
       scanResult.details.safeBrowsing = { status: 'completed', data: safeBrowsingResult };
@@ -142,12 +159,12 @@ class SecurityScanner {
           details: {
             protocol: 'HTTP',
             hasSSL: false,
-            issue: 'Site does not use HTTPS'
+            issue: 'Site does not use HTTPS',
+            warnings: ['Site is not using HTTPS encryption']
           }
         };
       }
 
-      // Use a simple fetch to check if HTTPS is working
       try {
         const response = await fetch(url, { 
           method: 'HEAD',
@@ -161,7 +178,8 @@ class SecurityScanner {
             protocol: 'HTTPS',
             hasSSL: true,
             status: response.status,
-            statusText: response.statusText
+            statusText: response.statusText,
+            warnings: []
           }
         };
       } catch (fetchError) {
@@ -172,7 +190,8 @@ class SecurityScanner {
             protocol: 'HTTPS',
             hasSSL: true,
             issue: 'SSL connection failed',
-            error: fetchError.message
+            error: fetchError.message,
+            warnings: ['SSL connection could not be established']
           }
         };
       }
@@ -182,7 +201,8 @@ class SecurityScanner {
         valid: false,
         grade: 'Check Failed',
         details: {
-          error: error.message
+          error: error.message,
+          warnings: ['SSL certificate check failed']
         }
       };
     }
@@ -193,7 +213,6 @@ class SecurityScanner {
       const urlObj = new URL(url);
       const domain = urlObj.hostname;
       
-      // Comprehensive domain analysis
       const checks = {
         suspiciousTLD: this.checkSuspiciousTLD(domain),
         shortDomain: domain.replace(/\./g, '').length < 6,
@@ -215,14 +234,16 @@ class SecurityScanner {
         flags: checks,
         domain: domain,
         analysis: this.generateDomainAnalysis(checks, domain),
-        riskFactors: Object.keys(checks).filter(key => checks[key])
+        riskFactors: Object.keys(checks).filter(key => checks[key]).map(key => this.formatRiskFactor(key))
       };
     } catch (error) {
       console.error('Domain reputation check failed:', error);
       return { 
         trustScore: 50, 
         error: error.message,
-        domain: 'Unknown'
+        domain: 'Unknown',
+        analysis: 'Domain analysis failed',
+        riskFactors: []
       };
     }
   }
@@ -254,7 +275,8 @@ class SecurityScanner {
       return {
         riskScore: 50,
         error: error.message,
-        details: {}
+        details: {},
+        recommendations: []
       };
     }
   }
@@ -297,7 +319,8 @@ class SecurityScanner {
         score: 0, 
         error: error.message,
         headers: {},
-        missing: []
+        missing: ['All security headers'],
+        present: []
       };
     }
   }
@@ -341,7 +364,7 @@ class SecurityScanner {
       }
     }
 
-    // Security Headers (Low - 5 points) 
+    // Security Headers (Low - 5 points)
     if (details.securityHeaders?.status === 'completed' && details.securityHeaders.data) {
       const headerScore = details.securityHeaders.data.score || 0;
       if (headerScore < 40) {
@@ -350,7 +373,6 @@ class SecurityScanner {
       }
     }
 
-    // Determine overall status
     let status, brief;
     if (riskScore >= 60) {
       status = 'dangerous';
@@ -375,7 +397,6 @@ class SecurityScanner {
   }
 
   checkHomographAttack(domain) {
-    // Check for mixed scripts and confusing characterswasdasdasdasdasasdasdasdas
     const suspiciousChars = /[а-я]|[α-ω]|[א-ת]|[零-龯]/;
     return suspiciousChars.test(domain);
   }
@@ -387,7 +408,6 @@ class SecurityScanner {
   }
 
   checkRandomPattern(domain) {
-    // Check for random-looking strings    m  nmmnmnmnasdasdasdasda
     const randomPattern = /[a-zA-Z0-9]{8,}/;
     const parts = domain.split('.');
     return parts.some(part => randomPattern.test(part) && !/[aeiou]/.test(part));
@@ -400,11 +420,11 @@ class SecurityScanner {
 
   checkSuspiciousPatterns(url) {
     const patterns = [
-      /[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/, // IP addresses
-      /[a-zA-Z0-9]{25,}/, // Long random strings
-      /-{3,}/, // Multiple dashes
-      /\.{3,}/, // Multiple dots
-      /%[0-9a-fA-F]{2}/ // URL encoded characters
+      /[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/,
+      /[a-zA-Z0-9]{25,}/,
+      /-{3,}/,
+      /\.{3,}/,
+      /%[0-9a-fA-F]{2}/
     ];
     return patterns.some(pattern => pattern.test(url));
   }
@@ -477,6 +497,20 @@ class SecurityScanner {
     return issues.length > 0 ? issues.join(', ') : 'Domain appears legitimate';
   }
 
+  formatRiskFactor(key) {
+    const riskFactorMap = {
+      suspiciousTLD: 'Suspicious top-level domain',
+      shortDomain: 'Very short domain name',
+      manySubdomains: 'Multiple subdomains',
+      containsNumbers: 'Contains multiple numbers',
+      homographAttack: 'Possible homograph attack',
+      ipAddress: 'IP address instead of domain',
+      dashesInDomain: 'Excessive dashes in domain',
+      randomPattern: 'Random-looking domain pattern'
+    };
+    return riskFactorMap[key] || key;
+  }
+
   generateURLRecommendations(analysis) {
     const recommendations = [];
     if (analysis.urlShortener) recommendations.push('URL shortener detected - verify destination');
@@ -523,7 +557,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const reportHTML = request.reportHTML;
     const filename = request.filename;
     
-    // Create blob and download
     const blob = new Blob([reportHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     
@@ -542,18 +575,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       URL.revokeObjectURL(url);
     });
     
-    return true; // Keep message channel open for async response
+    return true; 
+  }
+
+  if (request.action === 'updateSettings') {
+    scanner.loadSettings();
+    sendResponse({ success: true });
   }
 });
 
-// Event listeners with proper URL validation
+// Tab event listeners
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && isValidScanURL(tab.url)) {
     console.log('Valid URL detected, starting scan:', tab.url);
     scanner.performComprehensiveScan(tabId, tab.url);
   } else if (changeInfo.status === 'complete') {
     console.log('Skipping scan for URL:', tab.url);
-    // Clear any existing scan data for non-web pages
+    
     const key = `scanResult_${tabId}`;
     chrome.storage.local.remove(key);
   }
@@ -566,23 +604,28 @@ chrome.tabs.onActivated.addListener(activeInfo => {
       scanner.performComprehensiveScan(tab.id, tab.url);
     } else {
       console.log('Skipping scan on tab activation for:', tab.url);
-      // Clear any existing scan data
+      
       const key = `scanResult_${activeInfo.tabId}`;
       chrome.storage.local.remove(key);
     }
   });
 });
 
-// Helper function for URL validation
+// Settings change listener
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'sync' && changes.shurlock_settings) {
+    console.log('Settings updated, reloading scanner settings');
+    scanner.loadSettings();
+  }
+});
+
 function isValidScanURL(url) {
   if (!url) return false;
   
-  // Only scan HTTP and HTTPS URLs
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return false;
   }
   
-  // Skip common non-scannable URLs
   const skipPatterns = [
     'chrome://',
     'chrome-extension://',
@@ -600,4 +643,4 @@ function isValidScanURL(url) {
   return !skipPatterns.some(pattern => url.includes(pattern));
 }
 
-
+console.log('Shurlock Security Scanner background script loaded');

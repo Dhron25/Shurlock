@@ -15,45 +15,166 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Action buttons
     const detailedReportBtn = document.getElementById('detailed-report-btn');
-    const rescanBtn = document.getElementById('rescan-btn');
+    
+    // Settings elements
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettingsBtn = document.getElementById('close-settings');
     
     let currentScanData = null;
     let currentTabId = null;
+    let settings = {};
 
-    // Button event listeners
-    detailedReportBtn.addEventListener('click', generateDetailedReport);
-    rescanBtn.addEventListener('click', performRescan);
-
+    // Initialize
+    initializeSettings();
     initializeScanner();
-   
-    function initializeScanner() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs[0];
-        if (!tab || !tab.id) {
-            showError('Cannot access this page.');
-            return;
-        }
 
-       
-        if (!tab.url || (!tab.url.startsWith('http://') && !tab.url.startsWith('https://'))) {
-            showError('This extension only works on web pages (HTTP/HTTPS).');
-            return;
-        }
-
-        currentTabId = tab.id;
-        
-        try {
-            const url = new URL(tab.url);
-            domainDisplay.textContent = url.hostname;
-        } catch (e) {
-            domainDisplay.textContent = "Invalid URL";
-            showError('Invalid URL format.');
-            return;
-        }
-
-        loadScanResults(tab.id);
+    // Event listeners
+    detailedReportBtn.addEventListener('click', generateDetailedReport);
+    settingsBtn.addEventListener('click', openSettings);
+    closeSettingsBtn.addEventListener('click', closeSettings);
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) closeSettings();
     });
-}
+
+    // Settings functionality
+    function initializeSettings() {
+        // Default settings
+        const defaultSettings = {
+            scanning: {
+                timeout: 10,
+                autoRescan: true
+            },
+            appearance: {
+                theme: 'dark'
+            }
+        };
+
+        // Load settings from storage
+        chrome.storage.sync.get(['shurlock_settings'], (result) => {
+            settings = { ...defaultSettings, ...result.shurlock_settings };
+            applySettings();
+            updateSettingsUI();
+        });
+
+        // Setup settings event listeners
+        setupSettingsListeners();
+    }
+
+    function setupSettingsListeners() {
+        // Theme selector
+        document.getElementById('theme-select').addEventListener('change', (e) => {
+            settings.appearance.theme = e.target.value;
+            saveSettings();
+            applySettings();
+        });
+
+        // Scan timeout
+        document.getElementById('scan-timeout-select').addEventListener('change', (e) => {
+            settings.scanning.timeout = parseInt(e.target.value);
+            saveSettings();
+        });
+
+        // Auto-rescan toggle
+        document.getElementById('auto-rescan-toggle').addEventListener('click', () => {
+            const toggle = document.getElementById('auto-rescan-toggle');
+            const isActive = toggle.classList.contains('active');
+            settings.scanning.autoRescan = !isActive;
+            toggle.classList.toggle('active');
+            saveSettings();
+        });
+
+        // Clear history
+        document.getElementById('clear-history-btn').addEventListener('click', () => {
+            chrome.storage.local.clear(() => {
+                showNotification('Scan history cleared', 'success');
+            });
+        });
+
+        // Export data
+        document.getElementById('export-data-btn').addEventListener('click', () => {
+            chrome.storage.local.get(null, (data) => {
+                const exportData = JSON.stringify(data, null, 2);
+                const blob = new Blob([exportData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const downloadLink = document.createElement('a');
+                downloadLink.href = url;
+                downloadLink.download = `shurlock-data-${new Date().toISOString().slice(0, 10)}.json`;
+                downloadLink.click();
+                
+                URL.revokeObjectURL(url);
+                showNotification('Data exported successfully', 'success');
+            });
+        });
+
+        // Report issues
+        document.getElementById('report-issues-btn').addEventListener('click', () => {
+            chrome.tabs.create({ url: 'https://github.com/your-username/shurlock/issues' });
+        });
+    }
+
+    function updateSettingsUI() {
+        document.getElementById('theme-select').value = settings.appearance.theme;
+        document.getElementById('scan-timeout-select').value = settings.scanning.timeout || 10;
+        
+        const autoRescanToggle = document.getElementById('auto-rescan-toggle');
+        autoRescanToggle.classList.toggle('active', settings.scanning.autoRescan !== false);
+    }
+
+    function applySettings() {
+        const body = document.body;
+        body.className = body.className.replace(/\b(light-mode|dark-mode)\b/g, '');
+        
+        if (settings.appearance.theme === 'light') {
+            body.classList.add('light-mode');
+        } else if (settings.appearance.theme === 'dark') {
+            body.classList.add('dark-mode');
+        } else { // auto
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            body.classList.add(prefersDark ? 'dark-mode' : 'light-mode');
+        }
+    }
+
+    function saveSettings() {
+        chrome.storage.sync.set({ shurlock_settings: settings });
+    }
+
+    function openSettings() {
+        settingsModal.classList.add('show');
+    }
+
+    function closeSettings() {
+        settingsModal.classList.remove('show');
+    }
+
+    function initializeScanner() {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (!tab || !tab.id) {
+                showError('Cannot access this page.');
+                return;
+            }
+
+            if (!tab.url || (!tab.url.startsWith('http://') && !tab.url.startsWith('https://'))) {
+                showError('This extension only works on web pages (HTTP/HTTPS).');
+                return;
+            }
+
+            currentTabId = tab.id;
+            
+            try {
+                const url = new URL(tab.url);
+                domainDisplay.textContent = url.hostname;
+            } catch (e) {
+                domainDisplay.textContent = "Invalid URL";
+                showError('Invalid URL format.');
+                return;
+            }
+
+            loadScanResults(tab.id);
+        });
+    }
 
     function loadScanResults(tabId) {
         const key = `scanResult_${tabId}`;
@@ -82,92 +203,76 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateUI(scanData) {
         if (!scanData) return;
 
-
-        // Update main status
         updateMainStatus(scanData);
-        
-        // Update risk meter
         updateRiskMeter(scanData);
-        
-        // Update quick stats
         updateQuickStats(scanData);
-        
-        // Update timestamp
         updateTimestamp(scanData.timestamp);
-        
-        // Enable/disable buttons
         updateButtonStates(scanData);
     }
 
     function updateMainStatus(scanData) {
-    const { status, brief, overallRisk } = scanData;
-    
-    // Update status card styling
-    statusCard.className = `status-card status-${status}`;
-    
-    // Update icon and text
-    const statusConfig = {
-        safe: {
-            icon: 'icons/shield-check.svg',
-            title: 'Site is Safe',
-            iconClass: 'status-safe'
-        },
-        warning: {
-            icon: 'icons/alert-triangle.svg',
-            title: 'Security Warning',
-            iconClass: 'status-warning'
-        },
-        dangerous: {
-            icon: 'icons/shield-x.svg',
-            title: 'Dangerous Site',
-            iconClass: 'status-dangerous'
-        },
-        scanning: {
-            icon: 'icons/loader.svg',
-            title: 'Scanning...',
-            iconClass: 'status-scanning'
-        },
-        error: {
-            icon: 'icons/alert-circle.svg',
-            title: 'Scan Error',
-            iconClass: 'status-error'
-        }
-    };
+        const { status, brief, overallRisk } = scanData;
+        
+        statusCard.className = `status-card status-${status}`;
+        
+        const statusConfig = {
+            safe: {
+                icon: 'icons/shield-check.svg',
+                title: 'Site is Safe',
+                iconClass: 'status-safe'
+            },
+            warning: {
+                icon: 'icons/alert-triangle.svg',
+                title: 'Security Warning',
+                iconClass: 'status-warning'
+            },
+            dangerous: {
+                icon: 'icons/shield-x.svg',
+                title: 'Dangerous Site',
+                iconClass: 'status-dangerous'
+            },
+            scanning: {
+                icon: 'icons/shield-check.svg',
+                title: 'Scanning...',
+                iconClass: 'status-scanning'
+            },
+            error: {
+                icon: 'icons/alert-circle.svg',
+                title: 'Scan Error',
+                iconClass: 'status-error'
+            }
+        };
 
-    const config = statusConfig[status] || statusConfig.error;
-    statusIcon.src = config.icon;
-    statusIconContainer.className = `status-icon-container ${config.iconClass}`;
-    statusTitle.textContent = config.title;
-    statusBrief.textContent = brief || 'No additional information available.';
-}
+        const config = statusConfig[status] || statusConfig.error;
+        statusIcon.src = config.icon;
+        statusIconContainer.className = `status-icon-container ${config.iconClass}`;
+        statusTitle.textContent = config.title;
+        statusBrief.textContent = brief || 'No additional information available.';
+    }
 
-function showScanning() {
-    statusCard.className = 'status-card status-scanning';
-    statusIcon.src = 'icons/loader.svg';
-    statusIconContainer.className = 'status-icon-container status-scanning';
-    statusTitle.textContent = 'Scanning...';
-    statusBrief.textContent = 'Performing comprehensive security analysis...';
-    
-    // Reset quick stats
-    safeBrowsingStatus.textContent = 'Checking...';
-    sslStatus.textContent = 'Checking...';
-    domainStatus.textContent = 'Checking...';
-    
-    // Reset risk meter
-    riskFill.style.width = '0%';
-    
-    // Disable buttons
-    detailedReportBtn.disabled = true;
-    rescanBtn.disabled = true;
-}
+    function showScanning() {
+        statusCard.className = 'status-card status-scanning';
+        statusIcon.src = 'icons/shield-check.svg';
+        statusIconContainer.className = 'status-icon-container status-scanning';
+        statusTitle.textContent = 'Scanning...';
+        statusBrief.textContent = 'Performing comprehensive security analysis...';
+        
+        safeBrowsingStatus.textContent = 'Checking...';
+        sslStatus.textContent = 'Checking...';
+        domainStatus.textContent = 'Checking...';
+        
+        riskFill.style.width = '0%';
+        
+        detailedReportBtn.disabled = true;
+    }
 
-function showError(message) {
-    statusCard.className = 'status-card status-error';
-    statusIcon.src = 'icons/alert-circle.svg';
-    statusIconContainer.className = 'status-icon-container status-error';
-    statusTitle.textContent = 'Error';
-    statusBrief.textContent = message;
-}
+    function showError(message) {
+        statusCard.className = 'status-card status-error';
+        statusIcon.src = 'icons/alert-circle.svg';
+        statusIconContainer.className = 'status-icon-container status-error';
+        statusTitle.textContent = 'Error';
+        statusBrief.textContent = message;
+    }
 
     function updateRiskMeter(scanData) {
         const riskScore = scanData.overallRisk || 0;
@@ -176,7 +281,6 @@ function showError(message) {
         riskFill.style.width = `${percentage}%`;
         riskFill.className = `meter-fill ${getRiskClass(riskScore)}`;
         
-        // Add animation
         setTimeout(() => {
             riskFill.style.transition = 'width 0.8s ease-out';
         }, 100);
@@ -243,7 +347,6 @@ function showError(message) {
     function updateButtonStates(scanData) {
         const isComplete = scanData.status !== 'scanning';
         detailedReportBtn.disabled = !isComplete;
-        rescanBtn.disabled = scanData.status === 'scanning';
     }
 
     function generateDetailedReport() {
@@ -279,7 +382,6 @@ function showError(message) {
     function formatReportDetails(details) {
         const formatted = {};
 
-        // Safe Browsing
         if (details.safeBrowsing?.data) {
             const sb = details.safeBrowsing.data;
             formatted.safeBrowsing = {
@@ -291,7 +393,6 @@ function showError(message) {
             };
         }
 
-        // SSL Certificate
         if (details.sslCertificate?.data) {
             const ssl = details.sslCertificate.data;
             formatted.sslCertificate = {
@@ -302,7 +403,6 @@ function showError(message) {
             };
         }
 
-        // Domain Reputation
         if (details.domainReputation?.data) {
             const domain = details.domainReputation.data;
             formatted.domainReputation = {
@@ -312,7 +412,6 @@ function showError(message) {
             };
         }
 
-        // URL Analysis
         if (details.urlAnalysis?.data) {
             const url = details.urlAnalysis.data;
             formatted.urlAnalysis = {
@@ -322,7 +421,6 @@ function showError(message) {
             };
         }
 
-        // Security Headers
         if (details.securityHeaders?.data) {
             const headers = details.securityHeaders.data;
             formatted.securityHeaders = {
@@ -626,17 +724,14 @@ function showError(message) {
         const timestamp = new Date().toISOString().slice(0, 10);
         const filename = `shurlock-security-report-${domain}-${timestamp}.html`;
         
-        // Show loading state
         detailedReportBtn.disabled = true;
         const originalHTML = detailedReportBtn.innerHTML;
         detailedReportBtn.innerHTML = '<img src="icons/download.svg" alt="Download" class="btn-icon">Generating...';
         
-        // Create blob URL and trigger download directly
         try {
             const blob = new Blob([htmlContent], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             
-            // Create temporary download link
             const downloadLink = document.createElement('a');
             downloadLink.href = url;
             downloadLink.download = filename;
@@ -646,10 +741,8 @@ function showError(message) {
             downloadLink.click();
             document.body.removeChild(downloadLink);
             
-            // Clean up
             URL.revokeObjectURL(url);
             
-            // Reset button state
             detailedReportBtn.disabled = false;
             detailedReportBtn.innerHTML = originalHTML;
             
@@ -658,7 +751,6 @@ function showError(message) {
         } catch (error) {
             console.error('Download error:', error);
             
-            // Reset button state
             detailedReportBtn.disabled = false;
             detailedReportBtn.innerHTML = originalHTML;
             
@@ -669,19 +761,7 @@ function showError(message) {
     function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
-            color: white;
-            padding: 12px 16px;
-            border-radius: 6px;
-            z-index: 1000;
-            font-size: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            max-width: 300px;
-        `;
+        notification.className = `notification ${type}`;
         
         document.body.appendChild(notification);
         
@@ -689,30 +769,5 @@ function showError(message) {
             notification.remove();
         }, 3000);
     }
-
-    function performRescan() {
-        if (!currentTabId) return;
-        
-        showScanning();
-        
-        // Clear existing scan data
-        const key = `scanResult_${currentTabId}`;
-        chrome.storage.local.remove(key);
-        
-        // Trigger new scan
-        chrome.tabs.get(currentTabId, (tab) => {
-            if (tab.url) {
-                chrome.runtime.sendMessage({
-                    action: 'rescan',
-                    tabId: currentTabId,
-                    url: tab.url
-                });
-            }
-        });
-    }
 });
 
-
-
- 
-  

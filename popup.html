@@ -26,7 +26,7 @@
                 <div class="status-header">
                     <div class="status-icon-wrapper">
                         <div id="status-icon-container" class="status-icon-container">
-                            <img id="status-icon" src="icons/loader.svg" alt="Status" class="status-icon">
+                            <img id="status-icon" src="icons/shield-check.svg" alt="Status" class="status-icon">
                         </div>
                     </div>
                     <div class="status-text">
@@ -56,7 +56,7 @@
                     </div>
                 </div>
                 <div class="stat-item">
-                    <img src="icons/lock.svg" alt="SSL" class="stat-icon">
+                    <img src="icons/shield-lock.svg" alt="SSL" class="stat-icon">
                     <div class="stat-content">
                         <span class="stat-label">SSL Certificate</span>
                         <span id="ssl-status" class="stat-value">Checking...</span>
@@ -76,16 +76,77 @@
                     <img src="icons/download.svg" alt="Download" class="btn-icon">
                     Download Report
                 </button>
-                <button id="rescan-btn" class="btn btn-secondary">
-                    <img src="icons/refresh.svg" alt="Rescan" class="btn-icon">
-                    Rescan
-                </button>
             </div>
         </div>
 
         <div class="footer">
             <p class="domain-display" id="domain-display">domain.com</p>
             <p class="scan-time" id="scan-time">Last scanned: --</p>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button id="close-settings" class="close-btn">&times;</button>
+            </div>
+
+            <div class="settings-section">
+                <h3>Appearance</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Theme</span>
+                    <select id="theme-select" class="setting-select">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="auto">Auto</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Security Scanning</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Scan timeout (seconds)</span>
+                    <select id="scan-timeout-select" class="setting-select">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Auto-rescan on URL change</span>
+                    <div id="auto-rescan-toggle" class="toggle-switch active">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Data & Privacy</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Clear scan history</span>
+                    <button id="clear-history-btn" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">Clear</button>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Export scan data</span>
+                    <button id="export-data-btn" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">Export</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>About</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Version</span>
+                    <span class="setting-value">2.0.0</span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Report issues</span>
+                    <button id="report-issues-btn" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">GitHub</button>
+                </div>
+            </div>
         </div>
     </div>
 
