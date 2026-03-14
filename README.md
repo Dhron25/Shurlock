@@ -48,10 +48,5 @@ The Risk Meter visually represents the overall risk score.
 Quick Stats show the status of key checks like Safe Browsing, SSL Certificate, and Domain Trust.
 Download Detailed Report: Click the "Download Report" button to save a comprehensive HTML file detailing all aspects of the scan.
 
-<div align="center">
-  <a href="https://shipwrecked.hackclub.com/?t=ghrm" target="_blank">
-    <img src="https://hc-cdn.hel1.your-objectstorage.com/s/v3/739361f1d440b17fc9e2f74e49fc185d86cbec14_badge.png" 
-         alt="This project is part of Shipwrecked, the world's first hackathon on an island!" 
-         style="width: 35%;">
-  </a>
+
 </div>
